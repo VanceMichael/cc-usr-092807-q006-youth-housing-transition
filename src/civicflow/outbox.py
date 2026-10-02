@@ -23,6 +23,12 @@ class Outbox:
             connection.execute("INSERT INTO outbox_messages(message_id,topic,aggregate_id,payload_json,available_at,status) VALUES(?,?,?,?,?,?)", (message_id, topic, aggregate_id, canonical_json(payload), available_at, "pending"))
         return message_id
 
+    def enqueue_with(self, connection, *, topic: str, aggregate_id: str, payload: dict, available_at: str | None = None) -> str:
+        """在调用方已打开的事务连接上登记出站消息。"""
+        message_id = new_id("msg"); available_at = available_at or self.clock.now()
+        connection.execute("INSERT INTO outbox_messages(message_id,topic,aggregate_id,payload_json,available_at,status) VALUES(?,?,?,?,?,?)", (message_id, topic, aggregate_id, canonical_json(payload), available_at, "pending"))
+        return message_id
+
     def lease(self, *, owner: str, seconds: int = 30, limit: int = 20) -> list[dict]:
         now = parse_instant(self.clock.now()); lease_until = (now + timedelta(seconds=seconds)).isoformat().replace("+00:00", "Z")
         with self.database.transaction() as connection:

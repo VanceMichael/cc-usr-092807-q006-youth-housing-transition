@@ -23,6 +23,12 @@ class JobQueue:
             connection.execute("INSERT INTO scheduled_jobs(job_id,job_type,subject_id,run_at,payload_json,status) VALUES(?,?,?,?,?,'waiting')", (job_id, job_type, subject_id, run_at, canonical_json(payload)))
         return job_id
 
+    def schedule_with(self, connection, *, job_type: str, subject_id: str, run_at: str, payload: dict) -> str:
+        """在调用方已打开的事务连接上登记任务，避免同线程嵌套写事务自锁。"""
+        job_id = new_id("job"); run_at = canonical_instant(run_at)
+        connection.execute("INSERT INTO scheduled_jobs(job_id,job_type,subject_id,run_at,payload_json,status) VALUES(?,?,?,?,?,'waiting')", (job_id, job_type, subject_id, run_at, canonical_json(payload)))
+        return job_id
+
     def claim_due(self, *, seconds: int = 30, limit: int = 20) -> list[dict]:
         if seconds < 1 or limit < 1:
             raise ValidationError("租约参数不合法")
